@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from typing import Callable, Dict, List, Optional, TypeVar, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, TypeVar, TYPE_CHECKING, Protocol
 
 from mcp.server.fastmcp.tools import Tool as FastTool
 from mcp.types import (
@@ -30,6 +30,22 @@ LLM = TypeVar("LLM", bound=AugmentedLLM)
 
 HUMAN_INPUT_TOOL_NAME = "__human_input__"
 
+class ToolCallNotificationCallback(Protocol):
+    """Protocol for notifying when a tool is called."""
+
+    async def __call__(
+        self,
+        name: str,
+        arguments: dict | None = None,
+    ) -> None:
+        """
+        Notify when a tool is called.
+
+        Args:
+            name (str): The name of the tool being called.
+            arguments (dict | None): The arguments passed to the tool.
+        """
+        ...
 
 class Agent(MCPAggregator):
     """
@@ -45,6 +61,7 @@ class Agent(MCPAggregator):
         functions: List[Callable] = None,
         connection_persistence: bool = True,
         human_input_callback: HumanInputCallback = None,
+        tool_call_notification_callback: ToolCallNotificationCallback | None = None,
         context: Optional["Context"] = None,
         **kwargs,
     ):
@@ -64,6 +81,8 @@ class Agent(MCPAggregator):
 
         # Map function names to tools
         self._function_tool_map: Dict[str, FastTool] = {}
+
+        self.tool_call_notification_callback: ToolCallNotificationCallback | None = tool_call_notification_callback
 
         self.human_input_callback: HumanInputCallback | None = human_input_callback
         if not human_input_callback:
@@ -193,6 +212,13 @@ class Agent(MCPAggregator):
     async def call_tool(
         self, name: str, arguments: dict | None = None
     ) -> CallToolResult:
+        if self.tool_call_notification_callback is not None:
+            # Notify via the callback that a tool is being called
+            await self.tool_call_notification_callback(
+                name=name,
+                arguments=arguments
+            )
+
         if name == HUMAN_INPUT_TOOL_NAME:
             # Call the human input tool
             return await self._call_human_input_tool(arguments)
