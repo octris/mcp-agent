@@ -286,12 +286,7 @@ class AsyncEventBus:
     @classmethod
     def get(cls, transport: EventTransport | None = None) -> "AsyncEventBus":
         """Get the singleton instance of the event bus."""
-        if cls._instance is None:
-            cls._instance = cls(transport=transport)
-        elif transport is not None:
-            # Update transport if provided
-            cls._instance.transport = transport
-        return cls._instance
+        return cls(transport=transport)
 
     async def start(self):
         """Start the event bus and all lifecycle-aware listeners."""
