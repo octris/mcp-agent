@@ -37,6 +37,7 @@ class ToolCallNotificationCallback(Protocol):
         self,
         name: str,
         arguments: dict | None = None,
+        result: str | None = None,
     ) -> None:
         """
         Notify when a tool is called.
@@ -216,7 +217,8 @@ class Agent(MCPAggregator):
             # Notify via the callback that a tool is being called
             await self.tool_call_notification_callback(
                 name=name,
-                arguments=arguments
+                arguments=arguments,
+                result=None
             )
 
         if name == HUMAN_INPUT_TOOL_NAME:
@@ -226,6 +228,12 @@ class Agent(MCPAggregator):
             # Call local function and return the result as a text response
             tool = self._function_tool_map[name]
             result = await tool.run(arguments)
+            # Notify via the callback that a tool has finished calling
+            await self.tool_call_notification_callback(
+                name=name,
+                arguments=arguments,
+                result=str(result)
+            )
             return CallToolResult(content=[TextContent(type="text", text=str(result))])
         else:
             return await super().call_tool(name, arguments)
