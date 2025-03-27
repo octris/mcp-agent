@@ -229,14 +229,22 @@ class Agent(MCPAggregator):
             tool = self._function_tool_map[name]
             result = await tool.run(arguments)
             # Notify via the callback that a tool has finished calling
-            await self.tool_call_notification_callback(
-                name=name,
-                arguments=arguments,
-                result=str(result)
-            )
+            if self.tool_call_notification_callback is not None:
+                await self.tool_call_notification_callback(
+                    name=name,
+                    arguments=arguments,
+                    result=str(result)
+                )
             return CallToolResult(content=[TextContent(type="text", text=str(result))])
         else:
-            return await super().call_tool(name, arguments)
+            result = await super().call_tool(name, arguments)
+            if self.tool_call_notification_callback is not None:
+                await self.tool_call_notification_callback(
+                    name=name,
+                    arguments=arguments,
+                    result=str(result.content[0].text if result.content else None)
+                )
+            return result
 
     async def _call_human_input_tool(
         self, arguments: dict | None = None
